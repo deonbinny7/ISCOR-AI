@@ -1,0 +1,12 @@
+pandas
+scikit-learn
+numpy
+shap
+google-genai
+python-dotenv
+fastapi
+uvicorn
+requests
+cryptography
+sentence-transformers
+chromadb

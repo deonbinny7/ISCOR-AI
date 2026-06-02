@@ -1,0 +1,279 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --cloudlight: #F8F1E8;
+  --dawn: #F4C9A0;
+  --lavender: #DCD3EA;
+  --ink: #2B2438;
+  --amber: #E3A857;
+  --sage: #9FB08C;
+
+  /* Factor Colors */
+  --factor-sleep: #9b5fe0;
+  --factor-pressure: #16a4d8;
+  --factor-stress: #60dbe8;
+  --factor-support: #8bd346;
+  --factor-study: #efdf48;
+  --factor-activity: #f9a52c;
+  --factor-family: #d64e12;
+  --factor-age: #7f7f7f;
+  --factor-gender: #d2b4de;
+  --factor-default: #a9a9a9;
+
+  --sans: 'Inter', sans-serif;
+  --heading: 'Fraunces', serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 18% 18%, var(--dawn) 0, transparent 34%),
+    radial-gradient(circle at 72% 12%, var(--lavender) 0, transparent 30%),
+    linear-gradient(135deg, var(--cloudlight), #fffaf2 58%, #ece6f2);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading) !important;
+  letter-spacing: 0;
+  color: var(--ink);
+  margin-top: 0;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Nav */
+.navbar {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(43,36,56,.13);
+  margin-bottom: 2rem;
+  align-items: center;
+}
+
+.navbar .brand {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-right: auto;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.navbar a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.navbar a:hover, .navbar a.active {
+  background: rgba(43,36,56,.05);
+}
+
+/* Glassmorphism */
+.glass-panel {
+  padding: 1.5rem;
+  border: 1px solid rgba(43,36,56,.14);
+  border-radius: 8px;
+  background: rgba(255,255,255,.58);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(43,36,56,.05);
+}
+
+.glass-strip {
+  padding: .9rem 1rem;
+  border: 1px solid rgba(43,36,56,.13);
+  border-radius: 8px;
+  background: rgba(159,176,140,.18);
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+input, select, textarea {
+  padding: 0.75rem;
+  border: 1px solid rgba(43,36,56,.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,.8);
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--cloudlight);
+  font-family: var(--sans);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.outline {
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+}
+button.outline:hover {
+  background: rgba(43,36,56,.05);
+}
+
+/* Tags */
+.risk-tag {
+  display: inline-block;
+  padding: .45rem .75rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cloudlight);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+/* Utility Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out both;
+}
+
+/* Hero Section from App.py */
+.hero {
+  padding: 2.2rem 0 1.2rem;
+}
+.hero h1 {
+  font-size: clamp(3rem, 8vw, 6.5rem);
+  line-height: .88;
+  margin: 0;
+  max-width: 780px;
+}
+.hero p {
+  max-width: 620px;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+/* Fog Animation */
+.fog {
+  position: relative;
+  min-height: 330px;
+  border: 1px solid rgba(43,36,56,.13);
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(140deg, rgba(255,255,255,.56), rgba(244,201,160,.24), rgba(220,211,234,.5));
+  box-shadow: 0 20px 50px rgba(43,36,56,.14);
+}
+.fog:before, .fog:after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  filter: blur(18px);
+  background: rgba(248,241,232,.82);
+  animation: partFog 1.8s ease-out both;
+}
+.fog:before { left: 15%; top: 20%; }
+.fog:after { right: 10%; bottom: 8%; animation-delay: .08s; }
+.ray {
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  height: 150px;
+  transform-origin: bottom;
+  background: linear-gradient(transparent, var(--amber));
+  opacity: .8;
+  animation: showRay 1.6s ease-out both;
+}
+.r1 { top: 48px; transform: rotate(-28deg); }
+.r2 { top: 34px; transform: rotate(-6deg); }
+.r3 { top: 48px; transform: rotate(22deg); }
+.factor {
+  position: absolute;
+  padding: .45rem .7rem;
+  border: 1px solid rgba(43,36,56,.16);
+  border-radius: 999px;
+  background: rgba(248,241,232,.78);
+  font: 600 .78rem var(--mono);
+  animation: fadeIn 1.8s ease-out both;
+  z-index: 10;
+}
+.f1 { left: 18%; top: 74px; }
+.f2 { right: 17%; top: 92px; }
+.f3 { left: 38%; bottom: 62px; }
+
+@keyframes partFog {
+  from { transform: translateX(0) scale(1.2); opacity: 1; }
+  to { transform: translateX(-42px) scale(.95); opacity: .48; }
+}
+@keyframes showRay {
+  from { opacity: 0; height: 40px; }
+  to { opacity: .8; height: 150px; }
+}
+
+/* Breathing Animation */
+@keyframes breatheInOut {
+  0% { transform: scale(1); opacity: 0.6; }
+  40% { transform: scale(1.5); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 1; }
+  90% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+
+.breathe-circle {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--sage), rgba(159,176,140,0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+  color: var(--ink);
+  font-size: 1.5rem;
+  margin: 4rem auto;
+  box-shadow: 0 0 30px rgba(159,176,140,0.4);
+}

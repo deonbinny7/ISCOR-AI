@@ -1,0 +1,11 @@
+.venv/
+.venv-1/
+__pycache__/
+*.pyc
+.pytest_cache/
+iscor_demo.db
+test_output.json
+evaluation_results/
+node_modules/
+.env
+.agents/
