@@ -7,3 +7,4 @@
 - 2026-06-15: Add embedding generation module
 - 2026-06-15: Implement text chunking strategies
 - 2026-06-15: Create initial API routing structure
+- 2026-06-15: Add error handling for vector retrieval
