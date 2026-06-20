@@ -9,3 +9,4 @@
 - 2026-06-15: Create initial API routing structure
 - 2026-06-15: Add error handling for vector retrieval
 - 2026-06-20: Implement SHAP explainer base class
+- 2026-06-20: Add logging middleware for API requests
