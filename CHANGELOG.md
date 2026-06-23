@@ -10,3 +10,4 @@
 - 2026-06-15: Add error handling for vector retrieval
 - 2026-06-20: Implement SHAP explainer base class
 - 2026-06-20: Add logging middleware for API requests
+- 2026-06-24: Design frontend FactorChart component
