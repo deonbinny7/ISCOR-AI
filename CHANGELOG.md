@@ -12,3 +12,4 @@
 - 2026-06-20: Add logging middleware for API requests
 - 2026-06-24: Design frontend FactorChart component
 - 2026-06-25: Set up React frontend boilerplate
+- 2026-06-26: Integrate state management for frontend
