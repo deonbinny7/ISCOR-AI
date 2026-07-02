@@ -15,3 +15,4 @@
 - 2026-06-26: Integrate state management for frontend
 - 2026-06-28: Add red team generation script for evaluation
 - 2026-06-30: Improve prompt templates for RAG
+- 2026-07-02: Fix CORS issues in local development
