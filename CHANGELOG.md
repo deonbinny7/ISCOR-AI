@@ -17,3 +17,4 @@
 - 2026-06-30: Improve prompt templates for RAG
 - 2026-07-02: Fix CORS issues in local development
 - 2026-07-02: Optimize vector search query performance
+- 2026-07-03: Add unit tests for document parser
