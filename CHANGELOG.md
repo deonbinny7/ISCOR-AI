@@ -18,3 +18,4 @@
 - 2026-07-02: Fix CORS issues in local development
 - 2026-07-02: Optimize vector search query performance
 - 2026-07-03: Add unit tests for document parser
+- 2026-07-05: Refactor frontend main entry point
