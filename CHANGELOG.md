@@ -20,3 +20,4 @@
 - 2026-07-03: Add unit tests for document parser
 - 2026-07-05: Refactor frontend main entry point
 - 2026-07-08: Implement user feedback collection endpoint
+- 2026-07-10: Update dependencies to fix security vulnerabilities
