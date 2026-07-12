@@ -22,3 +22,4 @@
 - 2026-07-08: Implement user feedback collection endpoint
 - 2026-07-10: Update dependencies to fix security vulnerabilities
 - 2026-07-10: Add retry mechanism for LLM API calls
+- 2026-07-12: Enhance UI responsiveness for FactorChart
