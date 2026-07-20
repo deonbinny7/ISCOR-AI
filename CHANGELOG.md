@@ -23,3 +23,4 @@
 - 2026-07-10: Update dependencies to fix security vulnerabilities
 - 2026-07-10: Add retry mechanism for LLM API calls
 - 2026-07-12: Enhance UI responsiveness for FactorChart
+- 2026-07-20: Implement data validation for user inputs
