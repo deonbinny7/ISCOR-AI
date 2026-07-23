@@ -25,3 +25,4 @@
 - 2026-07-12: Enhance UI responsiveness for FactorChart
 - 2026-07-20: Implement data validation for user inputs
 - 2026-07-21: Add caching layer for frequent queries
+- 2026-07-23: Refactor evaluation metrics calculation
