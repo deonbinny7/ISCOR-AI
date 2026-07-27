@@ -27,3 +27,4 @@
 - 2026-07-21: Add caching layer for frequent queries
 - 2026-07-23: Refactor evaluation metrics calculation
 - 2026-07-23: Fix edge case in text chunking logic
+- 2026-07-27: Update README with setup instructions
