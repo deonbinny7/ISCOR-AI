@@ -28,3 +28,4 @@
 - 2026-07-23: Refactor evaluation metrics calculation
 - 2026-07-23: Fix edge case in text chunking logic
 - 2026-07-27: Update README with setup instructions
+- 2026-08-05: Add docker-compose for local testing
