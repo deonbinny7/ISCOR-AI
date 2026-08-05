@@ -30,3 +30,4 @@
 - 2026-07-27: Update README with setup instructions
 - 2026-08-05: Add docker-compose for local testing
 - 2026-08-05: Implement rate limiting on API endpoints
+- 2026-08-05: Enhance SHAP explainer visualization
