@@ -31,3 +31,4 @@
 - 2026-08-05: Add docker-compose for local testing
 - 2026-08-05: Implement rate limiting on API endpoints
 - 2026-08-05: Enhance SHAP explainer visualization
+- 2026-08-06: Fix bug in vector similarity scoring
