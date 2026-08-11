@@ -33,3 +33,4 @@
 - 2026-08-05: Enhance SHAP explainer visualization
 - 2026-08-06: Fix bug in vector similarity scoring
 - 2026-08-09: Add CI/CD pipeline configuration
+- 2026-08-11: Improve error messages in frontend
