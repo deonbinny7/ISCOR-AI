@@ -35,3 +35,4 @@
 - 2026-08-09: Add CI/CD pipeline configuration
 - 2026-08-11: Improve error messages in frontend
 - 2026-08-16: Refactor RAG service to use async/await
+- 2026-08-16: Finalize red team evaluation reporting
