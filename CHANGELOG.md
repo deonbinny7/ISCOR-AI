@@ -34,3 +34,4 @@
 - 2026-08-06: Fix bug in vector similarity scoring
 - 2026-08-09: Add CI/CD pipeline configuration
 - 2026-08-11: Improve error messages in frontend
+- 2026-08-16: Refactor RAG service to use async/await
