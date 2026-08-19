@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-DB_PATH = Path(__file__).resolve().parents[1] / "iscor_demo.db"
+import os
+DB_PATH = Path(os.getenv("ISCOR_DB_PATH", str(Path(__file__).resolve().parents[1] / "iscor_demo.db")))
 
 
 SCHEMA = """

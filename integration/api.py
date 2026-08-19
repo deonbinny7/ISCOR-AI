@@ -105,10 +105,12 @@ app = FastAPI(
     description="Part 5 API: preprocessing, inference, explainability, safety, and report assembly.",
 )
 
-# Allow CORS for local React development
+# Allow CORS for local React development and production domains
+import os
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev, allow all. In prod, restrict this.
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

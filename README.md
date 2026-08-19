@@ -1118,6 +1118,31 @@ The result is a prototype architecture that aims to be **predictive, explainable
 
 ---
 
+# 🚀 Deployment (Docker)
+
+ISCOR AI is containerized and ready for production deployment using Docker Compose.
+
+### 1. Prerequisites
+Ensure you have [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your server.
+
+### 2. Configuration
+Create a `.env` file in the root directory and add your API keys:
+```env
+ISCOR_USE_LLM=1
+GEMINI_API_KEY_1=your_api_key_here
+ALLOWED_ORIGINS=https://your-domain.com
+```
+
+### 3. Build & Run
+Run the following command to build the frontend and backend containers, and start the services in detached mode:
+```bash
+docker-compose up --build -d
+```
+
+The application will be available at `http://localhost` (or your server's IP/domain). The frontend React application is served by Nginx, which also acts as a reverse proxy for the FastAPI backend (`/api`), eliminating CORS issues.
+
+---
+
 <p align="center">
   <b>ISCOR AI</b><br>
   Intelligent Screening & Contextual Outcome Recommender

@@ -1,0 +1,12 @@
+.venv
+.venv-1
+__pycache__
+*.pyc
+node_modules
+.env
+.git
+.agents
+.cursor
+.vscode
+iscor_demo.db
+test_output.json

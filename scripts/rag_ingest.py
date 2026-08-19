@@ -7,7 +7,8 @@ import chromadb
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KNOWLEDGE_BASE_DIR = BASE_DIR / "knowledge_base"
-VECTOR_DB_DIR = BASE_DIR / "vector_db"
+import os
+VECTOR_DB_DIR = Path(os.getenv("ISCOR_VECTOR_DB_DIR", str(BASE_DIR / "vector_db")))
 
 # RAG Configuration
 CHUNK_SIZE_WORDS = 450

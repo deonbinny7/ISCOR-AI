@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iscor_backend
+    environment:
+      - ISCOR_USE_LLM=${ISCOR_USE_LLM:-1}
+      - GEMINI_API_KEY_1=${GEMINI_API_KEY_1}
+      - GROQ_API_KEY_1=${GROQ_API_KEY_1}
+      - ALLOWED_ORIGINS=*
+      - ISCOR_DB_PATH=/app/data/iscor_demo.db
+      - ISCOR_VECTOR_DB_DIR=/app/vector_db
+    volumes:
+      - iscor_data:/app/data
+      - iscor_vector:/app/vector_db
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iscor_frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  iscor_data:
+  iscor_vector:

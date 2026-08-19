@@ -22,7 +22,7 @@ FEATURE_DISPLAY_NAMES = {
 }
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-VECTOR_DB_DIR = BASE_DIR / "vector_db"
+VECTOR_DB_DIR = Path(os.getenv("ISCOR_VECTOR_DB_DIR", str(BASE_DIR / "vector_db")))
 COLLECTION_NAME = "iscor_knowledge_base"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
