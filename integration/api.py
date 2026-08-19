@@ -133,9 +133,8 @@ def startup() -> None:
     
     # Report SHAP fallback rate over the last 100 screenings
     try:
-        import sqlite3
-        from .database import DB_PATH
-        with sqlite3.connect(DB_PATH) as conn:
+        from .database import get_db, DB_PATH
+        with get_db(DB_PATH) as conn:
             cur = conn.cursor()
             cur.execute("SELECT id FROM Screenings ORDER BY id DESC LIMIT 100")
             rows = cur.fetchall()
@@ -143,13 +142,13 @@ def startup() -> None:
                 print("[STARTUP] No screenings yet, cannot calculate SHAP fallback rate.")
                 return
                 
-            screening_ids = [row[0] for row in rows]
-            placeholders = ",".join("?" for _ in screening_ids)
+            screening_ids = [row["id"] for row in rows]
+            placeholders = ",".join("%s" for _ in screening_ids)
             
             cur.execute(
                 f"SELECT COUNT(DISTINCT screening_id) FROM SafetyEvents "
                 f"WHERE event_type = 'shap_fallback' AND screening_id IN ({placeholders})",
-                screening_ids
+                tuple(screening_ids)
             )
             fallback_count = cur.fetchone()[0]
             total = len(screening_ids)

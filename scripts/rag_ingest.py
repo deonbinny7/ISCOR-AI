@@ -1,5 +1,7 @@
 import os
 import re
+from dotenv import load_dotenv
+load_dotenv()
 import uuid
 from pathlib import Path
 import fitz  # PyMuPDF
