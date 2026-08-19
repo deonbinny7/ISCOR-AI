@@ -9,4 +9,6 @@ uvicorn
 requests
 cryptography
 sentence-transformers
-chromadb
+qdrant-client
+psycopg2-binary
+pymupdf

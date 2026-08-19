@@ -1,14 +1,14 @@
 import os
 import re
+import uuid
 from pathlib import Path
 import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
-import chromadb
+from qdrant_client import QdrantClient
+from qdrant_client.models import VectorParams, Distance, PointStruct
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KNOWLEDGE_BASE_DIR = BASE_DIR / "knowledge_base"
-import os
-VECTOR_DB_DIR = Path(os.getenv("ISCOR_VECTOR_DB_DIR", str(BASE_DIR / "vector_db")))
 
 # RAG Configuration
 CHUNK_SIZE_WORDS = 450
@@ -31,11 +31,8 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
 
 def clean_text(text: str) -> str:
     """Cleans the extracted text."""
-    # Remove repeated newlines
     text = re.sub(r'\n+', '\n', text)
-    # Remove extra spaces
     text = re.sub(r' +', ' ', text)
-    # Remove URLs (simplified regex)
     text = re.sub(r'http[s]?://\S+', '', text)
     return text.strip()
 
@@ -58,22 +55,21 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 
 
 def ingest_knowledge_base():
-    """Reads PDFs, chunks them, embeds them, and stores in ChromaDB."""
+    """Reads PDFs, chunks them, embeds them, and stores in Qdrant Cloud."""
     print(f"Initializing embedding model: {EMBEDDING_MODEL_NAME}...")
     model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     
-    print(f"Initializing ChromaDB at {VECTOR_DB_DIR}...")
-    chroma_client = chromadb.PersistentClient(path=str(VECTOR_DB_DIR))
+    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
     
-    # We will reset or get the collection. For this script, we'll recreate it.
-    try:
-        chroma_client.delete_collection(name=COLLECTION_NAME)
-    except Exception:
-        pass  # Collection doesn't exist
-        
-    collection = chroma_client.create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"} # Use cosine similarity
+    print(f"Initializing QdrantClient at {qdrant_url}...")
+    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+    
+    print(f"Recreating collection {COLLECTION_NAME}...")
+    # all-MiniLM-L6-v2 has a vector size of 384
+    client.recreate_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=384, distance=Distance.COSINE),
     )
     
     total_chunks = 0
@@ -95,37 +91,38 @@ def ingest_knowledge_base():
                 if not chunks:
                     continue
                     
-                # Generate IDs, embeddings, and metadata for Chroma
-                ids = []
-                metadatas = []
-                documents = []
-                
+                points = []
                 for idx, chunk in enumerate(chunks):
-                    chunk_id = f"{source_org}_{doc_title}_{idx:03d}"
-                    ids.append(chunk_id)
-                    documents.append(chunk)
-                    metadatas.append({
-                        "source": source_org,
-                        "document": doc_title,
-                        "chunk_index": idx
-                    })
+                    chunk_id_str = f"{source_org}_{doc_title}_{idx:03d}"
+                    point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_id_str))
                     
-                # Embed chunks
-                embeddings = model.encode(documents).tolist()
+                    # Embed single chunk (in production, batch embed)
+                    embedding = model.encode(chunk).tolist()
+                    
+                    points.append(
+                        PointStruct(
+                            id=point_id,
+                            vector=embedding,
+                            payload={
+                                "chunk_id": chunk_id_str,
+                                "source": source_org,
+                                "document": doc_title,
+                                "chunk_index": idx,
+                                "text": chunk
+                            }
+                        )
+                    )
                 
-                # Add to ChromaDB
-                collection.add(
-                    ids=ids,
-                    embeddings=embeddings,
-                    documents=documents,
-                    metadatas=metadatas
+                # Add to Qdrant
+                client.upsert(
+                    collection_name=COLLECTION_NAME,
+                    points=points
                 )
                 
                 total_chunks += len(chunks)
                 print(f"  -> Added {len(chunks)} chunks.")
                 
     print(f"\nIngestion complete! Total chunks stored: {total_chunks}")
-    print(f"Vector DB is ready at {VECTOR_DB_DIR}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 import json
 import os
 import secrets
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -9,12 +10,52 @@ from typing import Any, Dict, Optional
 
 
 import os
-DB_PATH = Path(os.getenv("ISCOR_DB_PATH", str(Path(__file__).resolve().parents[1] / "iscor_demo.db")))
+DB_PATH = None
+
+class PostgresConnection:
+    def __init__(self, dsn):
+        import psycopg2
+        from psycopg2.extras import DictCursor
+        self.conn = psycopg2.connect(dsn)
+        self.conn.cursor_factory = DictCursor
+        
+    def cursor(self, *args, **kwargs):
+        return self.conn.cursor(*args, **kwargs)
+        
+    def execute(self, sql, params=None):
+        cur = self.conn.cursor()
+        if params:
+            cur.execute(sql, params)
+        else:
+            cur.execute(sql)
+        return cur
+        
+    def executescript(self, sql):
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        return cur
+        
+    def commit(self):
+        self.conn.commit()
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+        self.conn.close()
+
+def get_db(db_path=None):
+    return PostgresConnection(os.getenv("DATABASE_URL"))
+
 
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS Users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     consent_given INTEGER NOT NULL,
     consent_version TEXT NOT NULL DEFAULT 'demo-v1',
     region TEXT NOT NULL DEFAULT 'IN',
@@ -22,7 +63,7 @@ CREATE TABLE IF NOT EXISTS Users (
 );
 
 CREATE TABLE IF NOT EXISTS Sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -32,7 +73,7 @@ CREATE TABLE IF NOT EXISTS Sessions (
 );
 
 CREATE TABLE IF NOT EXISTS Screenings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER,
     input_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -40,7 +81,7 @@ CREATE TABLE IF NOT EXISTS Screenings (
 );
 
 CREATE TABLE IF NOT EXISTS Predictions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     screening_id INTEGER NOT NULL,
     risk_label TEXT NOT NULL,
     probabilities_json TEXT NOT NULL,
@@ -50,7 +91,7 @@ CREATE TABLE IF NOT EXISTS Predictions (
 );
 
 CREATE TABLE IF NOT EXISTS FeatureImportance (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     prediction_id INTEGER NOT NULL,
     feature TEXT NOT NULL,
     shap_value REAL NOT NULL,
@@ -60,7 +101,7 @@ CREATE TABLE IF NOT EXISTS FeatureImportance (
 );
 
 CREATE TABLE IF NOT EXISTS WellnessPlans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     prediction_id INTEGER NOT NULL,
     explanation TEXT NOT NULL,
     suggestions TEXT,
@@ -71,7 +112,7 @@ CREATE TABLE IF NOT EXISTS WellnessPlans (
 );
 
 CREATE TABLE IF NOT EXISTS ConversationHistory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     screening_id INTEGER NOT NULL,
     question TEXT,
     response TEXT,
@@ -80,7 +121,7 @@ CREATE TABLE IF NOT EXISTS ConversationHistory (
 );
 
 CREATE TABLE IF NOT EXISTS SafetyEvents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     screening_id INTEGER NOT NULL,
     event_type TEXT NOT NULL,
     message TEXT NOT NULL,
@@ -89,7 +130,7 @@ CREATE TABLE IF NOT EXISTS SafetyEvents (
 );
 
 CREATE TABLE IF NOT EXISTS RetrievedEvidence (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     screening_id INTEGER NOT NULL,
     chunk_id TEXT NOT NULL,
     source TEXT NOT NULL,
@@ -99,7 +140,7 @@ CREATE TABLE IF NOT EXISTS RetrievedEvidence (
 );
 
 CREATE TABLE IF NOT EXISTS PersonalityAssessments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     answers_json TEXT NOT NULL,
     summary TEXT,
@@ -108,7 +149,7 @@ CREATE TABLE IF NOT EXISTS PersonalityAssessments (
 );
 
 CREATE TABLE IF NOT EXISTS CompanionHistory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
@@ -117,7 +158,7 @@ CREATE TABLE IF NOT EXISTS CompanionHistory (
 );
 
 CREATE TABLE IF NOT EXISTS MoodCheckins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     mood_score INTEGER NOT NULL,
     note TEXT,
@@ -177,14 +218,16 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def _ensure_columns(conn: sqlite3.Connection) -> None:
-    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(Users)").fetchall()}
+def _ensure_columns(conn) -> None:
+    cur = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name='users'")
+    user_columns = {row[0] for row in cur.fetchall()}
     if "consent_version" not in user_columns:
         conn.execute("ALTER TABLE Users ADD COLUMN consent_version TEXT NOT NULL DEFAULT 'demo-v1'")
     if "region" not in user_columns:
         conn.execute("ALTER TABLE Users ADD COLUMN region TEXT NOT NULL DEFAULT 'IN'")
 
-    wellness_columns = {row[1] for row in conn.execute("PRAGMA table_info(WellnessPlans)").fetchall()}
+    cur = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name='wellnessplans'")
+    wellness_columns = {row[0] for row in cur.fetchall()}
     if "weekly_plan" not in wellness_columns:
         conn.execute("ALTER TABLE WellnessPlans ADD COLUMN weekly_plan TEXT")
     if "llm_provider" not in wellness_columns:
@@ -193,7 +236,7 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
 
 def init_db(db_path: Path = DB_PATH) -> None:
     """Initialize the SQLite schema and validate encryption settings."""
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         conn.executescript(SCHEMA)
         _ensure_columns(conn)
 
@@ -231,20 +274,20 @@ def create_session(
     expires_at = created_at + timedelta(hours=ttl_hours)
     token = secrets.token_urlsafe(32)
 
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         cur = conn.cursor()
         cur.execute(
             """
             INSERT INTO Users (consent_given, consent_version, region, created_at)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s) RETURNING id
             """,
             (1, consent_version, region, created_at.isoformat()),
         )
-        user_id = cur.lastrowid
+        user_id = cur.fetchone()[0]
         cur.execute(
             """
             INSERT INTO Sessions (user_id, token_hash, created_at, expires_at)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
             """,
             (user_id, hash_token(token), created_at.isoformat(), expires_at.isoformat()),
         )
@@ -261,13 +304,13 @@ def validate_session(token: str, db_path: Path = DB_PATH) -> Optional[int]:
     init_db(db_path)
     token_digest = hash_token(token)
     now = datetime.now(timezone.utc).isoformat()
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         row = conn.execute(
             """
             SELECT user_id FROM Sessions
-            WHERE token_hash = ?
+            WHERE token_hash = %s
               AND revoked_at IS NULL
-              AND expires_at > ?
+              AND expires_at > %s
             """,
             (token_digest, now),
         ).fetchone()
@@ -282,29 +325,29 @@ def persist_screening(
     init_db(db_path)
     created_at = now_iso()
 
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         cur = conn.cursor()
         if user_id is None:
             cur.execute(
                 """
                 INSERT INTO Users (consent_given, consent_version, region, created_at)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s) RETURNING id
                 """,
                 (1, "demo-v1", "IN", created_at),
             )
-            user_id = cur.lastrowid
+            user_id = cur.fetchone()[0]
 
         cur.execute(
-            "INSERT INTO Screenings (user_id, input_json, created_at) VALUES (?, ?, ?)",
+            "INSERT INTO Screenings (user_id, input_json, created_at) VALUES (%s, %s, %s) RETURNING id",
             (user_id, protect_text(json.dumps(report["input"], sort_keys=True)), created_at),
         )
-        screening_id = cur.lastrowid
+        screening_id = cur.fetchone()[0]
 
         cur.execute(
             """
             INSERT INTO Predictions
             (screening_id, risk_label, probabilities_json, crisis_mode, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
             """,
             (
                 screening_id,
@@ -314,14 +357,14 @@ def persist_screening(
                 created_at,
             ),
         )
-        prediction_id = cur.lastrowid
+        prediction_id = cur.fetchone()[0]
 
         for rank, factor in enumerate(report["top_factors"], start=1):
             cur.execute(
                 """
                 INSERT INTO FeatureImportance
                 (prediction_id, feature, shap_value, direction, rank)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
                 (
                     prediction_id,
@@ -336,7 +379,7 @@ def persist_screening(
             """
             INSERT INTO WellnessPlans
             (prediction_id, explanation, suggestions, weekly_plan, llm_provider, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (
                 prediction_id,
@@ -353,7 +396,7 @@ def persist_screening(
                 """
                 INSERT INTO ConversationHistory
                 (screening_id, question, response, created_at)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
                 """,
                 (
                     screening_id,
@@ -369,7 +412,7 @@ def persist_screening(
                     """
                     INSERT INTO RetrievedEvidence
                     (screening_id, chunk_id, source, similarity_score, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s)
                     """,
                     (
                         screening_id,
@@ -385,7 +428,7 @@ def persist_screening(
                 """
                 INSERT INTO SafetyEvents
                 (screening_id, event_type, message, created_at)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
                 """,
                 (
                     screening_id,
@@ -400,7 +443,7 @@ def persist_screening(
                 """
                 INSERT INTO SafetyEvents
                 (screening_id, event_type, message, created_at)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
                 """,
                 (
                     screening_id,
@@ -421,11 +464,11 @@ def persist_screening(
 
 def fetch_conversation_history(screening_id: int, db_path: Path = DB_PATH) -> list[Dict[str, Any]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         rows = conn.execute(
             "SELECT question, response, created_at FROM ConversationHistory "
-            "WHERE screening_id = ? ORDER BY created_at",
+            "WHERE screening_id = %s ORDER BY created_at",
             (screening_id,),
         ).fetchall()
         return [
@@ -440,8 +483,8 @@ def fetch_conversation_history(screening_id: int, db_path: Path = DB_PATH) -> li
 
 def fetch_latest_report(db_path: Path = DB_PATH) -> Optional[Dict[str, Any]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         row = conn.execute(
             """
             SELECT s.id AS screening_id, s.input_json, s.created_at AS screened_at,
@@ -469,13 +512,13 @@ def fetch_latest_report(db_path: Path = DB_PATH) -> Optional[Dict[str, Any]]:
         latest["conversation_history"] = fetch_conversation_history(latest["screening_id"], db_path=db_path)
         
         factors_rows = conn.execute(
-            "SELECT feature, shap_value, direction FROM FeatureImportance WHERE prediction_id = ? ORDER BY rank",
+            "SELECT feature, shap_value, direction FROM FeatureImportance WHERE prediction_id = %s ORDER BY rank",
             (latest["prediction_id"],)
         ).fetchall()
         latest["top_factors"] = [dict(r) for r in factors_rows]
         
         evidence_rows = conn.execute(
-            "SELECT chunk_id, source, similarity_score, created_at FROM RetrievedEvidence WHERE screening_id = ? ORDER BY similarity_score DESC",
+            "SELECT chunk_id, source, similarity_score, created_at FROM RetrievedEvidence WHERE screening_id = %s ORDER BY similarity_score DESC",
             (latest["screening_id"],)
         ).fetchall()
         latest["retrieved_evidence"] = [dict(r) for r in evidence_rows]
@@ -485,8 +528,8 @@ def fetch_latest_report(db_path: Path = DB_PATH) -> Optional[Dict[str, Any]]:
 
 def fetch_report_by_id(screening_id: int, db_path: Path = DB_PATH) -> Optional[Dict[str, Any]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         row = conn.execute(
             """
             SELECT s.id AS screening_id, s.input_json, s.created_at AS screened_at,
@@ -496,7 +539,7 @@ def fetch_report_by_id(screening_id: int, db_path: Path = DB_PATH) -> Optional[D
             FROM Screenings s
             JOIN Predictions p ON p.screening_id = s.id
             JOIN WellnessPlans w ON w.prediction_id = p.id
-            WHERE s.id = ?
+            WHERE s.id = %s
             LIMIT 1
             """,
             (screening_id,),
@@ -515,13 +558,13 @@ def fetch_report_by_id(screening_id: int, db_path: Path = DB_PATH) -> Optional[D
         report["conversation_history"] = fetch_conversation_history(report["screening_id"], db_path=db_path)
 
         factors_rows = conn.execute(
-            "SELECT feature, shap_value, direction FROM FeatureImportance WHERE prediction_id = ? ORDER BY rank",
+            "SELECT feature, shap_value, direction FROM FeatureImportance WHERE prediction_id = %s ORDER BY rank",
             (report["prediction_id"],)
         ).fetchall()
         report["top_factors"] = [dict(r) for r in factors_rows]
         
         evidence_rows = conn.execute(
-            "SELECT chunk_id, source, similarity_score, created_at FROM RetrievedEvidence WHERE screening_id = ? ORDER BY similarity_score DESC",
+            "SELECT chunk_id, source, similarity_score, created_at FROM RetrievedEvidence WHERE screening_id = %s ORDER BY similarity_score DESC",
             (report["screening_id"],)
         ).fetchall()
         report["retrieved_evidence"] = [dict(r) for r in evidence_rows]
@@ -536,9 +579,9 @@ def persist_conversation(
     db_path: Path = DB_PATH,
 ) -> None:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         conn.execute(
-            "INSERT INTO ConversationHistory (screening_id, question, response, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO ConversationHistory (screening_id, question, response, created_at) VALUES (%s, %s, %s, %s)",
             (screening_id, protect_text(question), protect_text(response), now_iso()),
         )
         conn.commit()
@@ -546,8 +589,8 @@ def persist_conversation(
 
 def fetch_history(limit: int = 20, user_id: Optional[int] = None, db_path: Path = DB_PATH) -> list[Dict[str, Any]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         if user_id is not None:
             rows = conn.execute(
                 """
@@ -556,9 +599,9 @@ def fetch_history(limit: int = 20, user_id: Optional[int] = None, db_path: Path 
                 FROM Screenings s
                 JOIN Predictions p ON p.screening_id = s.id
                 JOIN WellnessPlans w ON w.prediction_id = p.id
-                WHERE s.user_id = ?
+                WHERE s.user_id = %s
                 ORDER BY s.id DESC
-                LIMIT ?
+                LIMIT %s
                 """,
                 (user_id, limit),
             ).fetchall()
@@ -571,7 +614,7 @@ def fetch_history(limit: int = 20, user_id: Optional[int] = None, db_path: Path 
                 JOIN Predictions p ON p.screening_id = s.id
                 JOIN WellnessPlans w ON w.prediction_id = p.id
                 ORDER BY s.id DESC
-                LIMIT ?
+                LIMIT %s
                 """,
                 (limit,),
             ).fetchall()
@@ -590,15 +633,15 @@ def fetch_history(limit: int = 20, user_id: Optional[int] = None, db_path: Path 
 
 def fetch_trend_data(user_id: Optional[int] = None, db_path: Path = DB_PATH) -> list[Dict[str, Any]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         
         if user_id is not None:
             query = """
                 SELECT p.id, p.risk_label, p.probabilities_json, s.created_at
                 FROM Predictions p
                 JOIN Screenings s ON p.screening_id = s.id
-                WHERE s.user_id = ?
+                WHERE s.user_id = %s
                 ORDER BY s.created_at ASC
             """
             rows = conn.execute(query, (user_id,)).fetchall()
@@ -615,7 +658,7 @@ def fetch_trend_data(user_id: Optional[int] = None, db_path: Path = DB_PATH) -> 
         for row in rows:
             pred_id = row["id"]
             factors_rows = conn.execute(
-                "SELECT feature, direction FROM FeatureImportance WHERE prediction_id = ? ORDER BY rank",
+                "SELECT feature, direction FROM FeatureImportance WHERE prediction_id = %s ORDER BY rank",
                 (pred_id,)
             ).fetchall()
             
@@ -632,9 +675,9 @@ def fetch_trend_data(user_id: Optional[int] = None, db_path: Path = DB_PATH) -> 
 def purge_expired_sessions(db_path: Path = DB_PATH) -> int:
     init_db(db_path)
     now = datetime.now(timezone.utc).isoformat()
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         cur = conn.execute(
-            "UPDATE Sessions SET revoked_at = ? WHERE expires_at <= ? AND revoked_at IS NULL",
+            "UPDATE Sessions SET revoked_at = %s WHERE expires_at <= %s AND revoked_at IS NULL",
             (now, now),
         )
         conn.commit()
@@ -645,23 +688,23 @@ def purge_old_screenings(retention_days: int = 30, db_path: Path = DB_PATH) -> i
     """Delete screening-linked records older than the configured retention window."""
     init_db(db_path)
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         screening_rows = conn.execute(
-            "SELECT id FROM Screenings WHERE created_at < ?",
+            "SELECT id FROM Screenings WHERE created_at < %s",
             (cutoff,),
         ).fetchall()
         screening_ids = [row[0] for row in screening_rows]
         if not screening_ids:
             return 0
 
-        placeholders = ",".join("?" for _ in screening_ids)
+        placeholders = ",".join("%s" for _ in screening_ids)
         prediction_rows = conn.execute(
             f"SELECT id FROM Predictions WHERE screening_id IN ({placeholders})",
             screening_ids,
         ).fetchall()
         prediction_ids = [row[0] for row in prediction_rows]
         if prediction_ids:
-            prediction_placeholders = ",".join("?" for _ in prediction_ids)
+            prediction_placeholders = ",".join("%s" for _ in prediction_ids)
             conn.execute(f"DELETE FROM FeatureImportance WHERE prediction_id IN ({prediction_placeholders})", prediction_ids)
             conn.execute(f"DELETE FROM WellnessPlans WHERE prediction_id IN ({prediction_placeholders})", prediction_ids)
             conn.execute(f"DELETE FROM Predictions WHERE id IN ({prediction_placeholders})", prediction_ids)
@@ -676,21 +719,22 @@ def purge_old_screenings(retention_days: int = 30, db_path: Path = DB_PATH) -> i
 
 def save_personality_assessment(user_id: int, answers: dict, summary: str, db_path: Path = DB_PATH) -> int:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO PersonalityAssessments (user_id, answers_json, summary, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO PersonalityAssessments (user_id, answers_json, summary, created_at) VALUES (%s, %s, %s, %s) RETURNING id",
             (user_id, protect_text(json.dumps(answers)), protect_text(summary), now_iso())
         )
+        pid = cur.fetchone()[0]
         conn.commit()
-        return cur.lastrowid
+        return pid
 
 
 def fetch_latest_personality_summary(user_id: int, db_path: Path = DB_PATH) -> Optional[str]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         row = conn.execute(
-            "SELECT summary FROM PersonalityAssessments WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            "SELECT summary FROM PersonalityAssessments WHERE user_id = %s ORDER BY id DESC LIMIT 1",
             (user_id,)
         ).fetchone()
         return reveal_text(row[0]) if row else None
@@ -698,9 +742,9 @@ def fetch_latest_personality_summary(user_id: int, db_path: Path = DB_PATH) -> O
 
 def add_companion_message(user_id: int, role: str, content: str, db_path: Path = DB_PATH) -> None:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         conn.execute(
-            "INSERT INTO CompanionHistory (user_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO CompanionHistory (user_id, role, content, created_at) VALUES (%s, %s, %s, %s)",
             (user_id, role, protect_text(content), now_iso())
         )
         conn.commit()
@@ -708,10 +752,10 @@ def add_companion_message(user_id: int, role: str, content: str, db_path: Path =
 
 def fetch_companion_history(user_id: int, limit: int = 50, db_path: Path = DB_PATH) -> list[Dict[str, str]]:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         rows = conn.execute(
-            "SELECT role, content FROM (SELECT id, role, content FROM CompanionHistory WHERE user_id = ? ORDER BY id DESC LIMIT ?) ORDER BY id ASC",
+            "SELECT role, content FROM (SELECT id, role, content FROM CompanionHistory WHERE user_id = %s ORDER BY id DESC LIMIT %s) ORDER BY id ASC",
             (user_id, limit)
         ).fetchall()
         return [{"role": row["role"], "content": reveal_text(row["content"])} for row in rows]
@@ -719,9 +763,9 @@ def fetch_companion_history(user_id: int, limit: int = 50, db_path: Path = DB_PA
 
 def add_mood_checkin(user_id: int, mood_score: int, note: Optional[str], db_path: Path = DB_PATH) -> None:
     init_db(db_path)
-    with sqlite3.connect(db_path) as conn:
+    with get_db(db_path) as conn:
         conn.execute(
-            "INSERT INTO MoodCheckins (user_id, mood_score, note, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO MoodCheckins (user_id, mood_score, note, created_at) VALUES (%s, %s, %s, %s)",
             (user_id, mood_score, protect_text(note), now_iso())
         )
         conn.commit()
@@ -730,10 +774,10 @@ def add_mood_checkin(user_id: int, mood_score: int, note: Optional[str], db_path
 def fetch_recent_moods(user_id: int, days: int = 7, db_path: Path = DB_PATH) -> list[Dict[str, Any]]:
     init_db(db_path)
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with get_db(db_path) as conn:
+        
         rows = conn.execute(
-            "SELECT mood_score, note, created_at FROM MoodCheckins WHERE user_id = ? AND created_at >= ? ORDER BY created_at ASC",
+            "SELECT mood_score, note, created_at FROM MoodCheckins WHERE user_id = %s AND created_at >= %s ORDER BY created_at ASC",
             (user_id, cutoff)
         ).fetchall()
         return [{"mood_score": row["mood_score"], "note": reveal_text(row["note"]), "created_at": row["created_at"]} for row in rows]
