@@ -9,3 +9,6 @@ evaluation_results/
 node_modules/
 .env
 .agents/
+
+# Local vector store (production uses Qdrant Cloud)
+vector_db/

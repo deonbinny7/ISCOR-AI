@@ -64,6 +64,27 @@ graph TD;
 
 ---
 
+## 📊 Evaluation
+
+The deployed classifier is a Random Forest. Results on the held-out primary test split (1,405 samples):
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| Low | 0.31 | 0.22 | 0.26 | 204 |
+| Moderate | 0.46 | 0.42 | 0.44 | 346 |
+| High | 0.69 | 0.76 | 0.72 | 855 |
+
+Accuracy 0.60, macro-F1 0.47, macro ROC-AUC 0.76, high-risk Brier score 0.20.
+
+- **Strength:** the High class is the safety-critical one, and it has the best recall (0.76).
+- **Weakness:** Low-risk students are often misclassified (recall 0.22). The classes are imbalanced and the signal is limited, so treat this as a screening aid only.
+- **Fairness:** across gender on high-risk classification, the disparate impact ratio is 0.997 and the equal opportunity difference is 0.027.
+- **Generalization:** on an external depression dataset with a bridged binary label, accuracy is 0.61, against a 0.50 majority-class baseline. This is a modest result.
+
+Full details are in [docs/metrics_report.md](docs/metrics_report.md).
+
+---
+
 ## 🚀 Live Demo
 
 You can interact with the live production deployment of ISCOR AI here:
